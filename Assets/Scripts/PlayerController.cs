@@ -13,18 +13,21 @@ public class PlayerController : MonoBehaviour
     public float dashSpeed = 4.8f;
     public float jumpForce = 9.5f;
 
-    // 空中での横方向の効き具合（0〜1）
     private float airControlFactor = 1f;
-    private float airControlDecayRate = 1.8f; // 減衰スピード（大きいほど早く減速）
+    private float airControlDecayRate = 1.8f; // 減衰スピード
     public int maxJumps = 2;
     int jumpsLeft;
 
+    private bool isKnockback = false;
+
     private Rigidbody2D rb;
-    private bool isGrounded = false;
+    private PlayerHealth ph;
+    public Animator animator;
+    private bool isJumping = false;
     private bool isDashing = false;
 
     // === Ability & attack ===
-    //public AbilityType currentAbility = AbilityType.Fire;
+    public AbilityType currentAbility = AbilityType.Fire;
     public Transform attackPoint;
     public float baseMeleeRange = 0.9f;
     public LayerMask enemyLayer;
@@ -54,6 +57,7 @@ public class PlayerController : MonoBehaviour
     {
         inputActions = new InputSystem_Actions();
         rb = GetComponent<Rigidbody2D>();
+        ph = GetComponent<PlayerHealth>();
         jumpsLeft = maxJumps;
     }
 
@@ -62,8 +66,10 @@ public class PlayerController : MonoBehaviour
 
     void Update()
     {
+        if (isKnockback) return;
+
         // 地上でのみShift入力を反映
-        if (isGrounded)
+        if (!isJumping)
         {
             if (Keyboard.current.leftShiftKey.isPressed)
                 isDashing = true;
@@ -82,23 +88,34 @@ public class PlayerController : MonoBehaviour
         // ===== 向き変更 =====
         LookMoveDirection();
 
-        // ===== 移動処理 =====
-        Vector3 moveDirection = new Vector3(moveInput.x, 0, 0);
-        transform.Translate(moveDirection * currentSpeed * Time.deltaTime);
-        
-        float clampedX = Mathf.Clamp(transform.position.x, -8.3f, 8.3f);
-        transform.position = new Vector3(clampedX, transform.position.y, 0);
-
         // ===== ジャンプ =====
         if (inputActions.Player.Jump.WasPressedThisFrame() && jumpsLeft > 0)
         {
             DoJump();
+        }   
+
+        if (moveInput.x == 0)
+        {
+            animator.SetBool("isMoving", false);
         }
+        else
+        {
+            animator.SetBool("isMoving", true);
+        }
+
+        // ===== 移動処理 =====
+        Vector3 moveDirection = new Vector3(moveInput.x, 0, 0);
+        transform.Translate(moveDirection * currentSpeed * Time.deltaTime);
+        
+        float clampedX = Mathf.Clamp(transform.position.x, -8.3f, Mathf.Infinity);
+        transform.position = new Vector3(clampedX, transform.position.y, 0);
     }
 
     void FixedUpdate()
     {
-        if (isGrounded)
+        if (isKnockback) return;
+
+        if (!isJumping)
         {
             airControlFactor = 1f; // 地上に着地したらリセット
         }
@@ -134,22 +151,8 @@ public class PlayerController : MonoBehaviour
     void DoAttack()
     {
         Debug.Log("攻撃！");
-    }
 
- 
-    void DoJump()
-    {
-        isGrounded = false;
-        airControlFactor = 1f;
-        rb.linearVelocity = new Vector2(rb.linearVelocity.x, 0f);
-        rb.AddForce(Vector2.up * jumpForce, ForceMode2D.Impulse);
-        jumpsLeft--;
-    }
-
-
-    /*
-    void DoAttack()
-    {
+        
         // damage multipliers from killCount tiers
         int tier = killCount / killsPerTier;
         float dmgMul = 1f + tier * damageMultiplierPerTier;
@@ -163,8 +166,8 @@ public class PlayerController : MonoBehaviour
             int dmg = Mathf.RoundToInt(fireDamage * dmgMul);
             foreach (var c in hits)
             {
-                var enemy = c.GetComponent<Enemy>();
-                if (enemy != null) enemy.TakeDamage(dmg, this);
+                var enemy = c.GetComponent<EnemyHealth>();
+                if (enemy != null) enemy.TakeDamage(dmg);
             }
         }
         else if (currentAbility == AbilityType.Wind)
@@ -181,10 +184,18 @@ public class PlayerController : MonoBehaviour
             var bp = b.GetComponent<BubbleProjectile>();
             if (bp != null) bp.Init(waterDamage, dmgMul);
         }
+        
     }
-    */
 
-    /*
+    void DoJump()
+    {
+        isJumping = true;
+        animator.SetBool("isJumping", true);
+        airControlFactor = 1f;
+        rb.linearVelocity = new Vector2(rb.linearVelocity.x, 0f);
+        rb.AddForce(Vector2.up * jumpForce, ForceMode2D.Impulse);
+        jumpsLeft--;
+    }
     void TryPickupCore()
     {
         Collider2D[] cols = Physics2D.OverlapCircleAll(transform.position, corePickupRadius);
@@ -207,9 +218,7 @@ public class PlayerController : MonoBehaviour
             }
         }
     }
-    */
 
-    /*
     public void AbsorbCore(Core core)
     {
         // Determine ability from core's assigned type
@@ -231,9 +240,7 @@ public class PlayerController : MonoBehaviour
 
         // Visual: change sprite tint or play small effect (left to you)
     }
-    */
 
-    /*
     void SpawnFollowCore(AbilityType prev)
     {
         if (followCorePrefab == null) return;
@@ -241,7 +248,6 @@ public class PlayerController : MonoBehaviour
         var fc = obj.GetComponent<FollowCore>();
         if (fc != null) fc.Init(this.transform, prev);
     }
-    */
 
     // called by Enemy when killed by this player
     public void OnEnemyKilled()
@@ -260,15 +266,58 @@ public class PlayerController : MonoBehaviour
         }
         Gizmos.color = Color.cyan;
         Gizmos.DrawWireSphere(transform.position, corePickupRadius);
-    }
+    }   
 
     void OnCollisionEnter2D(Collision2D col)
     {
         if (col.collider.CompareTag("Ground"))
         {
             isDashing = false;
-            isGrounded = true;
+            isJumping = false;
+            animator.SetBool("isJumping", false);
             jumpsLeft = maxJumps; 
         }
+
+        if (col.collider.CompareTag("Enemy"))
+        {
+            if (ph.IsInvincible()) return;
+
+            EnemyHealth enemyHealth = col.collider.GetComponent<EnemyHealth>();
+
+            if (GameManager.Instance.isGameActive)
+            {
+                if (enemyHealth != null)
+                {
+                    enemyHealth.TakeDamage(1);
+                }
+
+                ph.TakeDamage(1);
+            }
+
+            // ===== ノックバック処理 =====
+            Vector2 knockDir = (transform.position - col.transform.position).normalized;
+
+            float knockbackPowerX = 4.5f;
+            float knockbackPowerY = 3.5f;
+
+            // 現在の速度をリセット
+            rb.linearVelocity = Vector2.zero;
+
+            rb.linearVelocity = new Vector2(knockDir.x * knockbackPowerX, knockbackPowerY);
+
+            StartCoroutine(KnockbackRoutine(0.3f));
+        }
+    }
+
+    // 操作ロック（ジャンプ・移動を一時停止）
+    IEnumerator KnockbackRoutine(float duration)
+    {
+        isKnockback = true;
+        inputActions.Disable();
+
+        yield return new WaitForSeconds(duration);
+
+        isKnockback = false;
+        inputActions.Enable();
     }
 }

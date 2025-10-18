@@ -6,6 +6,8 @@ public class PlayerHealth : MonoBehaviour
     public int maxHP = 5;
     public int currentHP;
 
+    private float fallDeathY = -5f;
+
     private float invincibilityDuration = 1f;
     private bool isInvincible = false;
 
@@ -16,7 +18,6 @@ public class PlayerHealth : MonoBehaviour
     public GameObject dieEffectPrefab;
 
     public AudioSource damageSound;
-    public AudioSource dieSound;
 
     void Start()
     {
@@ -25,10 +26,27 @@ public class PlayerHealth : MonoBehaviour
         mainCamera = Camera.main;
     }
 
+    void Update()
+    {
+        // ‚±‚Ì‚‚³‚ğ‰º‰ñ‚Á‚½‚ç€–S
+        if (transform.position.y < fallDeathY)
+        {
+            Instantiate(dieEffectPrefab, transform.position, Quaternion.identity);
+            GameManager.Instance.GameOver();
+            Destroy(gameObject);
+        }
+    }
+
     public int GetHP()
     {
         return currentHP;
     }
+
+    public bool IsInvincible()
+    {
+        return isInvincible;
+    }
+
 
     public void TakeDamage(int damageAmount)
     {
@@ -42,7 +60,7 @@ public class PlayerHealth : MonoBehaviour
         }
         else
         {
-            //StartCoroutine(InvincibilityCoroutine());
+            StartCoroutine(InvincibilityCoroutine());
             StartCoroutine(CameraShake());
         }
     }
@@ -88,21 +106,10 @@ public class PlayerHealth : MonoBehaviour
             hpIcon.ForceUpdateIcon();
         }
 
-        GameManager.Instance.GameOver();
-
+        AudioSource.PlayClipAtPoint(damageSound.clip, new Vector3(0, 0, -8), 0.3f);
         Instantiate(dieEffectPrefab, transform.position, Quaternion.identity);
-        AudioSource.PlayClipAtPoint(dieSound.clip, transform.position, 0.5f);
         Destroy(gameObject);
-    }
 
-    private void OnTriggerEnter2D(Collider2D other)
-    {
-        if (other.CompareTag("Enemy"))
-        {
-            if (GameManager.Instance.isGameActive)
-            {
-                TakeDamage(1);
-            }
-        }
+        GameManager.Instance.GameOver();
     }
 }

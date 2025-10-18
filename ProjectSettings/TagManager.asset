@@ -7,6 +7,7 @@ TagManager:
   - Ground
   - Enemy
   - Green
+  - Item
   layers:
   - Default
   - TransparentFX
@@ -41,11 +42,17 @@ TagManager:
   - 
   - 
   m_SortingLayers:
+  - name: Back
+    uniqueID: 262991303
+    locked: 0
   - name: Default
     uniqueID: 0
     locked: 0
   - name: Character
     uniqueID: 1098878241
+    locked: 0
+  - name: UI
+    uniqueID: 276774021
     locked: 0
   m_RenderingLayers:
   - Default
