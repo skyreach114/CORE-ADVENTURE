@@ -10,7 +10,6 @@ public class CameraManager : MonoBehaviour
         if (GameManager.Instance != null && GameManager.Instance.playerController != null)
         {
             pc = GameManager.Instance.playerController;
-            Debug.Log("CameraManagaer:" + pc + "Found!");
         }
 
         initPos = transform.position;

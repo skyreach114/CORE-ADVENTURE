@@ -12,6 +12,7 @@ public class EnemyHealth : MonoBehaviour
     [SerializeField] private EnemyCore enemyCore; // コアクラスへの参照
 
     // === 内部変数 ===
+    private float fallDeathY = -5f;
     private float invincibilityDuration = 0.4f;
     protected int currentHealth;
     protected SpriteRenderer spriteRenderer;
@@ -23,6 +24,21 @@ public class EnemyHealth : MonoBehaviour
         spriteRenderer = GetComponent<SpriteRenderer>();
 
         if (enemyCore == null) enemyCore = GetComponent<EnemyCore>();
+    }
+
+    void Update()
+    {
+        // この高さを下回ったら死亡
+        if (transform.position.y < fallDeathY)
+        {
+            Instantiate(dieEffectPrefab, transform.position, Quaternion.identity);
+            Destroy(gameObject);
+        }
+    }
+
+    public int GetHP()
+    {
+        return currentHealth;
     }
 
     public void TakeDamage(int damageAmount)

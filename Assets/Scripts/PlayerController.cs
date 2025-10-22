@@ -29,14 +29,24 @@ public class PlayerController : MonoBehaviour
     // === Ability & attack ===
     public AbilityType currentAbility = AbilityType.Fire;
     public Transform attackPoint;
-    public float baseMeleeRange = 0.9f;
+    private float baseMeleeRange = 0.5f;
+    
     public LayerMask enemyLayer;
+
+    // 攻撃クールダウン関連
+    private bool canAttack = true;
+    private float attackCooldown = 0f;
+
+    // 各武器タイプごとのクールダウン設定
+    [SerializeField] private float fireCooldown = 0.5f;
+    [SerializeField] private float windCooldown = 1.0f;
+    [SerializeField] private float waterCooldown = 0.7f;
 
     public int fireDamage = 6;
     public int windDamage = 4;
     public int waterDamage = 2;
 
-    // boomerang / bubble prefabs
+    public GameObject SwordEffectPrefab;
     public GameObject boomerangPrefab;
     public GameObject bubblePrefab;
 
@@ -77,12 +87,22 @@ public class PlayerController : MonoBehaviour
                 isDashing = false;
         }
 
-        if (inputActions.Player.Attack.WasPressedThisFrame())
+        // クールダウンタイマーを減らす
+        if (!canAttack)
         {
-            DoAttack();
+            attackCooldown -= Time.deltaTime;
+            if (attackCooldown <= 0f)
+                canAttack = true;
         }
 
-        // Absorb Core
+        // 攻撃入力
+        if (inputActions.Player.Attack.WasPressedThisFrame())
+        {
+            if (canAttack)
+                DoAttack();
+        }
+
+        // Core吸収
         //TryPickupCore();
 
         // ===== 向き変更 =====
@@ -152,23 +172,43 @@ public class PlayerController : MonoBehaviour
     {
         Debug.Log("攻撃！");
 
-        
-        // damage multipliers from killCount tiers
+        // 攻撃を無効化してクールダウン開始
+        canAttack = false;
+
+        // 武器タイプに応じたクールダウン設定
+        switch (currentAbility)
+        {
+            case AbilityType.Fire:
+                attackCooldown = fireCooldown;
+                break;
+            case AbilityType.Wind:
+                attackCooldown = windCooldown;
+                break;
+            case AbilityType.Water:
+                attackCooldown = waterCooldown;
+                break;
+        }
+
+        // killCountによるダメージ倍率補正
         int tier = killCount / killsPerTier;
         float dmgMul = 1f + tier * damageMultiplierPerTier;
         float rangeMul = 1f + tier * rangeMultiplierPerTier;
 
         if (currentAbility == AbilityType.Fire)
         {
-            // Melee sword: overlap circle
-            float range = baseMeleeRange * rangeMul;
-            Collider2D[] hits = Physics2D.OverlapCircleAll(attackPoint.position, range, enemyLayer);
-            int dmg = Mathf.RoundToInt(fireDamage * dmgMul);
-            foreach (var c in hits)
+            GameObject sword = Instantiate(SwordEffectPrefab, attackPoint);
+
+            // SwordHitboxのパラメータ設定
+            SwordHitbox hitbox = sword.GetComponent<SwordHitbox>();
+            if (hitbox != null)
             {
-                var enemy = c.GetComponent<EnemyHealth>();
-                if (enemy != null) enemy.TakeDamage(dmg);
+                hitbox.damage = Mathf.RoundToInt(fireDamage * dmgMul); // 実ダメージを反映
+                hitbox.enemyLayer = enemyLayer;                        // 敵レイヤー指定
+                hitbox.duration = 0.3f;                                // 攻撃持続時間
             }
+
+            // アニメーション同期などがあればここでトリガー
+            // animator.SetTrigger("Attack");
         }
         else if (currentAbility == AbilityType.Wind)
         {
@@ -184,7 +224,6 @@ public class PlayerController : MonoBehaviour
             var bp = b.GetComponent<BubbleProjectile>();
             if (bp != null) bp.Init(waterDamage, dmgMul);
         }
-        
     }
 
     void DoJump()
