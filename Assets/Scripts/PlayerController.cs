@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 using System.Collections;
+using UnityEngine.UI;
 
 [RequireComponent(typeof(Rigidbody2D))]
 public class PlayerController : MonoBehaviour
@@ -9,8 +10,8 @@ public class PlayerController : MonoBehaviour
     private InputSystem_Actions inputActions;
     private Vector2 moveInput;
     private float currentSpeed;
-    public float normalSpeed = 3f;
-    public float dashSpeed = 4.8f;
+    public float normalSpeed = 2.5f;
+    public float dashSpeed = 4f;
     public float jumpForce = 9.5f;
 
     private float airControlFactor = 1f;
@@ -25,6 +26,18 @@ public class PlayerController : MonoBehaviour
     public Animator animator;
     private bool isJumping = false;
     private bool isDashing = false;
+
+    // === Mobile UI references ===
+    [Header("Mobile UI (optional)")]
+    public VirtualJoystick_Horizontal virtualJoystick;
+    public Button jumpTouchButton;
+    public Button attackTouchButton;
+
+    private float mobileDeadZone = 0.1f;        // この値未満は無視
+    private float mobileWalkThreshold = 0.8f; // この値未満は通常速度
+
+    private bool isMobileControl = false;
+    private float processedMobileInput = 0f; // 処理後の入力値
 
     // === Ability & attack ===
     public AbilityType currentAbility = AbilityType.Fire;
@@ -69,6 +82,39 @@ public class PlayerController : MonoBehaviour
         rb = GetComponent<Rigidbody2D>();
         ph = GetComponent<PlayerHealth>();
         jumpsLeft = maxJumps;
+
+        string scheme = PlayerPrefs.GetString("ControlScheme", "PC");
+        isMobileControl = scheme == "Mobile";
+
+        if (isMobileControl)
+        {
+            if (jumpTouchButton != null)
+            {
+                jumpTouchButton.onClick.AddListener(OnTouchJumpPressed);
+            }
+            if (attackTouchButton != null)
+            {
+                attackTouchButton.onClick.AddListener(OnTouchAttackPressed);
+            }
+
+            // スマホUIを表示
+            if (virtualJoystick != null)
+                virtualJoystick.gameObject.SetActive(true);
+            if (jumpTouchButton != null)
+                jumpTouchButton.gameObject.SetActive(true);
+            if (attackTouchButton != null)
+                attackTouchButton.gameObject.SetActive(true);
+        }
+        else
+        {
+            // PC操作の場合はUIを非表示
+            if (virtualJoystick != null)
+                virtualJoystick.gameObject.SetActive(false);
+            if (jumpTouchButton != null)
+                jumpTouchButton.gameObject.SetActive(false);
+            if (attackTouchButton != null)
+                attackTouchButton.gameObject.SetActive(false);
+        }
     }
 
     void OnEnable() => inputActions.Enable();
@@ -78,8 +124,38 @@ public class PlayerController : MonoBehaviour
     {
         if (isKnockback) return;
 
-        // 地上でのみShift入力を反映
-        if (!isJumping)
+        // === スマホ操作の入力処理 ===
+        if (isMobileControl && virtualJoystick != null)
+        {
+            float rawInput = virtualJoystick.InputX;
+            float absInput = Mathf.Abs(rawInput);
+
+            // デッドゾーン処理：小さい入力は無視
+            if (absInput < mobileDeadZone)
+            {
+                processedMobileInput = 0f;
+                moveInput.x = 0f;
+                isDashing = false;
+            }
+            // 通常歩き：中程度の入力
+            else if (absInput < mobileWalkThreshold)
+            {
+                // 方向は保持するが、大きさは1.0に正規化（ノーマルスピード用）
+                processedMobileInput = Mathf.Sign(rawInput) * 1.0f;
+                moveInput.x = processedMobileInput;
+                isDashing = false;
+            }
+            // ダッシュ：大きな入力
+            else
+            {
+                processedMobileInput = Mathf.Sign(rawInput) * 1.0f;
+                moveInput.x = processedMobileInput;
+                isDashing = true;
+            }
+        }
+
+        // 地上でのみShift入力を反映（PC用）
+        if (!isJumping && !isMobileControl)
         {
             if (Keyboard.current.leftShiftKey.isPressed)
                 isDashing = true;
@@ -95,8 +171,8 @@ public class PlayerController : MonoBehaviour
                 canAttack = true;
         }
 
-        // 攻撃入力
-        if (inputActions.Player.Attack.WasPressedThisFrame())
+        // 攻撃入力（PC用）
+        if (!isMobileControl && inputActions.Player.Attack.WasPressedThisFrame())
         {
             if (canAttack)
                 DoAttack();
@@ -108,13 +184,13 @@ public class PlayerController : MonoBehaviour
         // ===== 向き変更 =====
         LookMoveDirection();
 
-        // ===== ジャンプ =====
-        if (inputActions.Player.Jump.WasPressedThisFrame() && jumpsLeft > 0)
+        // ===== ジャンプ（PC用）=====
+        if (!isMobileControl && inputActions.Player.Jump.WasPressedThisFrame() && jumpsLeft > 0)
         {
             DoJump();
         }   
 
-        if (moveInput.x == 0)
+        if (Mathf.Abs(moveInput.x) <= 0.1f)
         {
             animator.SetBool("isMoving", false);
         }
@@ -157,6 +233,7 @@ public class PlayerController : MonoBehaviour
 
     void OnMove(InputValue value)
     {
+        if (isMobileControl) return;
         moveInput = value.Get<Vector2>();
     }
 
@@ -235,6 +312,23 @@ public class PlayerController : MonoBehaviour
         rb.AddForce(Vector2.up * jumpForce, ForceMode2D.Impulse);
         jumpsLeft--;
     }
+
+    // ========== Methods for touch callbacks ==========
+    void OnTouchJumpPressed()
+    {
+        // Mobile のジャンプはここから入れる
+        if (jumpsLeft > 0)
+        {
+            DoJump();
+        }
+    }
+
+    void OnTouchAttackPressed()
+    {
+        if (canAttack)
+            DoAttack();
+    }
+
     void TryPickupCore()
     {
         Collider2D[] cols = Physics2D.OverlapCircleAll(transform.position, corePickupRadius);

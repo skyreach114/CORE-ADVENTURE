@@ -111,7 +111,7 @@ Transform:
   m_GameObject: {fileID: 5259240782429327299}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -5.19, y: -3, z: 0}
+  m_LocalPosition: {x: -5.16, y: -2.94, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -235,7 +235,7 @@ Rigidbody2D:
   m_Mass: 1
   m_LinearDamping: 0
   m_AngularDamping: 0.05
-  m_GravityScale: 1.8
+  m_GravityScale: 2
   m_Material: {fileID: 0}
   m_IncludeLayers:
     serializedVersion: 2
@@ -316,11 +316,19 @@ MonoBehaviour:
   jumpForce: 9.5
   maxJumps: 2
   animator: {fileID: 20934497500733789}
+  virtualJoystick: {fileID: 0}
+  jumpTouchButton: {fileID: 0}
+  attackTouchButton: {fileID: 0}
+  mobileDashThreshold: 0.75
+  mobileDashBurstTime: 0.18
   currentAbility: 0
   attackPoint: {fileID: 590163065719427244}
   enemyLayer:
     serializedVersion: 2
     m_Bits: 128
+  fireCooldown: 0.5
+  windCooldown: 1
+  waterCooldown: 0.7
   fireDamage: 6
   windDamage: 4
   waterDamage: 2

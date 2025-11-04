@@ -10,9 +10,8 @@ public class GameManager : MonoBehaviour
 
     private int enemiesDefeated = 0;
 
-    //public CharacterData[] characters;
     public GameObject playerPrefab;
-    private GameObject playerObj;
+    //private GameObject playerObj;
     public Transform playerSpawnPoint;
 
     public PlayerController playerController { get; private set; }
@@ -51,10 +50,10 @@ public class GameManager : MonoBehaviour
     {
         isGameActive = true;
 
-        playerObj = Instantiate(playerPrefab, playerSpawnPoint.position, Quaternion.identity);
+        //playerObj = Instantiate(playerPrefab, playerSpawnPoint.position, Quaternion.identity);
 
-        playerController = playerObj.GetComponent<PlayerController>();
-        var ph = playerObj.GetComponent<PlayerHealth>();
+        playerController = playerPrefab.GetComponent<PlayerController>();
+        var ph = playerPrefab.GetComponent<PlayerHealth>();
 
         if (hpIconUI != null && ph != null)
         {

@@ -84,6 +84,10 @@ public class EnemyHealth : MonoBehaviour
     // 死亡処理
     public void Die()
     {
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.EnemyDefeated();
+        }
 
         // コアのドロップを要求
         if (enemyCore != null)
